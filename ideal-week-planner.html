@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ideal Week Planner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e8e5de;
+    --border-light: #f0ede6;
+    --text: #1a1a18;
+    --text-muted: #888880;
+    --text-faint: #b8b5ae;
+    --sleep-bg: #eeeef8;
+    --slot-h: 28px;
+    --sidebar-w: 230px;
+    --header-h: 36px;
+    --toolbar-h: 44px;
+    --time-w: 52px;
+    --accent: #2a2a28;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+
+  /* ── Layout ── */
+  #app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sb-header {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sb-header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+  .sb-header p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .sb-scroll { flex: 1; overflow-y: auto; padding: 12px 12px 0; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 12px 2px 7px;
+  }
+  .section-label:first-child { margin-top: 2px; }
+
+  /* Sleep config */
+  .sleep-box {
+    background: #f0f2ff;
+    border-radius: 9px;
+    padding: 10px 11px;
+  }
+  .sleep-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+  }
+  .sleep-row:last-of-type { margin-bottom: 0; }
+  .sleep-row label { font-size: 12px; color: #555; }
+  .sleep-row select {
+    font-size: 11px;
+    padding: 4px 7px;
+    border: 1px solid #d0d4ee;
+    border-radius: 5px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+  }
+  .sleep-stat {
+    margin-top: 8px;
+    background: #e2e6ff;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11px;
+    color: #4a58c8;
+    font-weight: 500;
+  }
+
+  /* Category list */
+  .cat-list { display: flex; flex-direction: column; gap: 3px; }
+
+  .cat-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 7px;
+    border-radius: 7px;
+    cursor: default;
+    transition: background 0.1s;
+  }
+  .cat-item:hover { background: #f5f4f0; }
+
+  .cat-check {
+    width: 15px; height: 15px;
+    border-radius: 4px;
+    border: 1.5px solid #ccc;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s;
+  }
+  .cat-check.checked { border-color: transparent; }
+  .cat-check svg { display: none; }
+  .cat-check.checked svg { display: block; }
+
+  .cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cat-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-hrs { font-size: 11px; color: var(--text-faint); flex-shrink: 0; min-width: 28px; text-align: right; }
+
+  .cat-del-btn {
+    width: 18px; height: 18px;
+    background: none; border: none;
+    color: #ccc; font-size: 15px;
+    cursor: pointer; flex-shrink: 0;
+    line-height: 1; padding: 0;
+    opacity: 0; transition: opacity 0.1s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cat-item:hover .cat-del-btn { opacity: 1; }
+  .cat-del-btn:hover { color: #e55; }
+
+  /* Add category */
+  .add-cat {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    margin-top: 9px;
+    padding-bottom: 4px;
+  }
+  .add-cat input {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    background: #fff;
+    color: var(--text);
+  }
+  .add-cat input:focus { border-color: #999; }
+  input[type="color"].color-swatch {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px;
+    cursor: pointer;
+    background: none;
+    flex-shrink: 0;
+  }
+  .add-cat-btn {
+    padding: 5px 10px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .add-cat-btn:hover { background: #444; }
+
+  /* Stats panel */
+  #stats-panel {
+    padding: 10px 12px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .stats-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 9px;
+  }
+  .stat-row { margin-bottom: 6px; }
+  .stat-top {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 3px;
+  }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .stat-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-val { font-size: 12px; font-weight: 500; flex-shrink: 0; }
+  .stat-track {
+    height: 3px;
+    background: #f0ede8;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-left: 15px;
+  }
+  .stat-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+
+  /* ── Main area ── */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  #toolbar {
+    height: var(--toolbar-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  #toolbar h2 { font-size: 13px; font-weight: 600; }
+  .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+  .tb-snap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+  .tb-snap select {
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 11px;
+    font-family: inherit;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+  }
+  .tb-hint { font-size: 11px; color: var(--text-faint); margin-left: auto; }
+
+  /* ── Grid ── */
+  #grid-scroll { flex: 1; overflow: auto; position: relative; }
+
+  #grid {
+    display: flex;
+    min-width: max-content;
+    min-height: 100%;
+  }
+
+  /* Time column */
+  #time-col {
+    width: var(--time-w);
+    min-width: var(--time-w);
+    flex-shrink: 0;
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: var(--bg);
+  }
+  .time-col-head {
+    height: var(--header-h);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 25;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .time-label {
+    height: var(--slot-h);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-right: 8px;
+    padding-top: 1px;
+    font-size: 10px;
+    color: var(--text-faint);
+    user-select: none;
+    line-height: 1;
+  }
+
+  /* Days */
+  #days-area { flex: 1; display: flex; }
+
+  .day-col {
+    flex: 1;
+    min-width: 90px;
+    position: relative;
+    border-right: 1px solid var(--border-light);
+  }
+  .day-col:last-child { border-right: none; }
+
+  .day-head {
+    height: var(--header-h);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    user-select: none;
+  }
+
+  .day-body { position: relative; }
+
+  .slot {
+    height: var(--slot-h);
+    border-bottom: 1px solid var(--border-light);
+    position: relative;
+    cursor: crosshair;
+  }
+  .slot.hr { border-bottom-color: var(--border); }
+  .slot.sleep { background: var(--sleep-bg); }
+  .slot:hover { background: #f8f7f4; }
+  .slot.sleep:hover { background: #e8e8f5; }
+
+  /* selection ghost */
+  .sel-ghost {
+    position: absolute;
+    left: 3px; right: 3px;
+    border-radius: 6px;
+    border: 2px dashed rgba(60,60,60,0.35);
+    background: rgba(60,60,60,0.05);
+    pointer-events: none;
+    z-index: 30;
+  }
+
+  /* Blocks */
+  .block {
+    position: absolute;
+    left: 3px; right: 3px;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: grab;
+    user-select: none;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.1s;
+  }
+  .block:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 6; }
+  .block:active { cursor: grabbing; }
+  .block.hidden { display: none !important; }
+
+  .block-body {
+    flex: 1;
+    padding: 3px 6px 2px;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .block-title {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+    color: #1a1a18;
+  }
+  .block-cat-label {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    opacity: 0.7;
+  }
+  .block-loc {
+    font-size: 10px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+  .block-resize {
+    height: 7px;
+    cursor: ns-resize;
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .block-resize::after {
+    content: '';
+    width: 18px; height: 2px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 1px;
+  }
+
+  /* ── Modal ── */
+  #modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-backdrop.open { display: flex; }
+
+  #modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 330px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    overflow: hidden;
+    animation: modal-in 0.15s ease;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .modal-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-head h3 { font-size: 14px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none;
+    font-size: 20px; color: #bbb;
+    cursor: pointer; line-height: 1;
+    padding: 2px 6px;
+  }
+  .modal-close:hover { color: #555; }
+
+  .modal-body { padding: 14px 16px; }
+  .modal-time-info {
+    font-size: 11px; color: #aaa;
+    margin-bottom: 13px;
+  }
+
+  .form-group { margin-bottom: 12px; }
+  .form-group:last-child { margin-bottom: 0; }
+  .form-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 5px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.1s;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color: #888; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+
+  .modal-foot {
+    padding: 10px 16px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-delete {
+    padding: 7px 13px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 7px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #e44;
+    cursor: pointer;
+  }
+  .btn-delete:hover { background: #fff4f4; border-color: #fcc; }
+  .btn-save {
+    flex: 1;
+    padding: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn-save:hover { background: #3a3a38; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-header">
+      <h1>Ideal Week</h1>
+      <p>Design your perfect week</p>
+    </div>
+    <div class="sb-scroll">
+      <div class="section-label">Day Boundaries</div>
+      <div class="sleep-box">
+        <div class="sleep-row">
+          <label>Wake up</label>
+          <select id="wake-select"></select>
+        </div>
+        <div class="sleep-row">
+          <label>Sleep at</label>
+          <select id="sleep-select"></select>
+        </div>
+        <div class="sleep-stat" id="sleep-stat">Sleep: — h/day · — h/week</div>
+      </div>
+
+      <div class="section-label">Categories</div>
+      <div class="cat-list" id="cat-list"></div>
+
+      <div class="add-cat">
+        <input type="text" id="new-cat-name" placeholder="New category…" maxlength="24">
+        <input type="color" id="new-cat-color" class="color-swatch" value="#4a9eff">
+        <button class="add-cat-btn" id="add-cat-btn">Add</button>
+      </div>
+    </div>
+
+    <div id="stats-panel">
+      <div class="stats-label">Weekly Hours</div>
+      <div id="stats-list"></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="toolbar">
+      <h2>Weekly Grid</h2>
+      <div class="tb-sep"></div>
+      <div class="tb-snap">
+        <span>Snap</span>
+        <select id="snap-select">
+          <option value="1">15 min</option>
+          <option value="2" selected>30 min</option>
+        </select>
+      </div>
+      <span class="tb-hint">Drag to create · Click to edit · Drag bottom edge to resize</span>
+    </div>
+    <div id="grid-scroll">
+      <div id="grid">
+        <div id="time-col">
+          <div class="time-col-head"></div>
+        </div>
+        <div id="days-area"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Block modal -->
+<div id="modal-backdrop">
+  <div id="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">New Block</h3>
+      <button class="modal-close" id="modal-close-btn">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-time-info" id="modal-time-info"></div>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="f-title" placeholder="e.g. Lunch, Deep work…" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="f-cat"></select>
+      </div>
+      <div class="form-group">
+        <label>Location (optional)</label>
+        <input type="text" id="f-loc" placeholder="e.g. Home, Office…" maxlength="60">
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="f-notes" placeholder="Any details…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-delete" id="modal-del-btn" style="display:none">Delete</button>
+      <button class="btn-save" id="modal-save-btn">Create block</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Constants ── */
+const DAYS_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAYS_FULL  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const TOTAL_SLOTS = 48; // half-hours in a day
+const SLOT_H = 28;      // px per slot
+
+/* ── State ── */
+let snapSlots = 2; // 2 = 30min, 1 = 15min
+let wakeSlot  = 14; // 7am
+let sleepSlot = 46; // 11pm
+let nextId    = 1;
+const uid = () => String(nextId++);
+
+let categories = [
+  { id:'study',    name:'Study',    color:'#4a9eff', visible:true },
+  { id:'work',     name:'Work',     color:'#ff8c42', visible:true },
+  { id:'food',     name:'Food',     color:'#4caf7d', visible:true },
+  { id:'commute',  name:'Commute',  color:'#f4c542', visible:true },
+  { id:'personal', name:'Personal', color:'#e87b9b', visible:true },
+  { id:'gym',      name:'Gym',      color:'#9c6fff', visible:true },
+];
+
+// block: { id, dayIdx, startSlot, endSlot, catId, title, location, notes }
+let blocks = [];
+
+/* ── Helpers ── */
+function slotToTimeLabel(slot) {
+  const h = Math.floor(slot / 2);
+  const m = slot % 2 === 0 ? '00' : '30';
+  const ampm = h < 12 ? 'am' : 'pm';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return m === '00' ? `${h12}${ampm}` : `${h12}:${m}`;
+}
+function slotToFullLabel(slot) {
+  const h = String(Math.floor(slot/2)).padStart(2,'0');
+  const m = slot%2===0?'00':'30';
+  return `${h}:${m}`;
+}
+function slotsToHours(s) { return Math.round(s * 0.5 * 10) / 10; }
+function clamp(v,lo,hi) { return Math.max(lo, Math.min(hi, v)); }
+function snapTo(raw) { return Math.round(raw / snapSlots) * snapSlots; }
+
+function isSleepSlot(slot) {
+  // handles wrap-around (e.g., sleep 11pm, wake 7am)
+  if (wakeSlot <= sleepSlot) return slot < wakeSlot || slot >= sleepSlot;
+  return slot >= sleepSlot && slot < wakeSlot;
+}
+
+function getCat(id) { return categories.find(c => c.id === id); }
+
+/* ── Build time selects ── */
+function buildTimeSelects() {
+  ['wake-select','sleep-select'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    sel.innerHTML = '';
+    for (let i = 0; i < TOTAL_SLOTS; i++) {
+      const o = document.createElement('option');
+      o.value = i;
+      o.textContent = slotToTimeLabel(i);
+      sel.appendChild(o);
+    }
+  });
+  document.getElementById('wake-select').value  = wakeSlot;
+  document.getElementById('sleep-select').value = sleepSlot;
+}
+
+/* ── Build grid ── */
+function buildGrid() {
+  // Time labels
+  const timeCol = document.getElementById('time-col');
+  // clear old labels
+  [...timeCol.querySelectorAll('.time-label')].forEach(e => e.remove());
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    const d = document.createElement('div');
+    d.className = 'time-label';
+    d.style.height = SLOT_H + 'px';
+    d.textContent = i % 2 === 0 ? slotToTimeLabel(i) : '';
+    timeCol.appendChild(d);
+  }
+
+  // Day columns
+  const daysArea = document.getElementById('days-area');
+  daysArea.innerHTML = '';
+  for (let di = 0; di < 7; di++) {
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    col.id = `day-col-${di}`;
+
+    const head = document.createElement('div');
+    head.className = 'day-head';
+    head.textContent = DAYS_SHORT[di];
+    col.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'day-body';
+    body.id = `day-body-${di}`;
+
+    for (let si = 0; si < TOTAL_SLOTS; si++) {
+      const slot = document.createElement('div');
+      slot.className = 'slot' + (si % 2 === 1 ? ' hr' : '') + (isSleepSlot(si) ? ' sleep' : '');
+      slot.style.height = SLOT_H + 'px';
+      slot.dataset.slot = si;
+      slot.dataset.day  = di;
+      body.appendChild(slot);
+    }
+
+    attachDayDrag(body, di);
+    col.appendChild(body);
+    daysArea.appendChild(col);
+  }
+}
+
+function refreshSleepZones() {
+  document.querySelectorAll('.slot').forEach(el => {
+    const si = parseInt(el.dataset.slot);
+    el.classList.toggle('sleep', isSleepSlot(si));
+  });
+}
+
+/* ── Drag to create ── */
+let selState = null;
+let selGhost = null;
+
+function attachDayDrag(body, di) {
+  body.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.block')) return;
+    e.preventDefault();
+
+    const rect = body.getBoundingClientRect();
+    const rawSlot = Math.floor((e.clientY - rect.top) / SLOT_H);
+    const startSlot = clamp(snapTo(rawSlot), 0, TOTAL_SLOTS - snapSlots);
+
+    selState = { di, startSlot, endSlot: startSlot + snapSlots };
+
+    selGhost = document.createElement('div');
+    selGhost.className = 'sel-ghost';
+    body.appendChild(selGhost);
+    updateSelGhost();
+
+    const onMove = ev => {
+      const rect2 = body.getBoundingClientRect();
+      const hoverSlot = clamp(snapTo(Math.floor((ev.clientY - rect2.top) / SLOT_H)), 0, TOTAL_SLOTS);
+      selState.endSlot = Math.max(selState.startSlot + snapSlots, hoverSlot + snapSlots);
+      updateSelGhost();
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (selGhost) { selGhost.remove(); selGhost = null; }
+      if (!selState) return;
+      const s = selState; selState = null;
+      if (s.endSlot - s.startSlot < 1) return;
+      const firstNonFixed = categories.find(c => c.visible);
+      openModal('new', { dayIdx: s.di, startSlot: s.startSlot, endSlot: s.endSlot,
+        catId: firstNonFixed?.id || categories[0]?.id, title: '', location: '', notes: '' });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+}
+
+function updateSelGhost() {
+  if (!selGhost || !selState) return;
+  selGhost.style.top    = selState.startSlot * SLOT_H + 'px';
+  selGhost.style.height = (selState.endSlot - selState.startSlot) * SLOT_H + 'px';
+}
+
+/* ── Render blocks ── */
+function renderBlocks() {
+  // Remove old block elements
+  document.querySelectorAll('.block').forEach(e => e.remove());
+
+  blocks.forEach(b => {
+    const body = document.getElementById(`day-body-${b.dayIdx}`);
+    if (!body) return;
+    const cat = getCat(b.catId);
+    if (!cat) return;
+
+    const el = document.createElement('div');
+    el.className = 'block' + (cat.visible ? '' : ' hidden');
+    el.id = `block-${b.id}`;
+    el.style.top    = b.startSlot * SLOT_H + 1 + 'px';
+    el.style.height = (b.endSlot - b.startSlot) * SLOT_H - 1 + 'px';
+    el.style.background = cat.color + '22';
+    el.style.borderLeft = `3px solid ${cat.color}`;
+
+    const inner = document.createElement('div');
+    inner.className = 'block-body';
+
+    if (b.title) {
+      const t = document.createElement('div');
+      t.className = 'block-title';
+      t.textContent = b.title;
+      inner.appendChild(t);
+    }
+    const cl = document.createElement('div');
+    cl.className = 'block-cat-label';
+    cl.style.color = cat.color;
+    cl.textContent = cat.name;
+    inner.appendChild(cl);
+
+    if (b.location) {
+      const loc = document.createElement('div');
+      loc.className = 'block-loc';
+      loc.textContent = '📍 ' + b.location;
+      inner.appendChild(loc);
+    }
+
+    el.appendChild(inner);
+
+    const resize = document.createElement('div');
+    resize.className = 'block-resize';
+    el.appendChild(resize);
+
+    attachBlockInteraction(el, b, resize);
+    body.appendChild(el);
+  });
+}
+
+function attachBlockInteraction(el, b, resizeHandle) {
+  // Click to edit (if not dragged)
+  let didDrag = false;
+
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target === resizeHandle || resizeHandle.contains(e.target)) return;
+    e.preventDefault(); e.stopPropagation();
+    didDrag = false;
+    const startY  = e.clientY;
+    const origStart = b.startSlot, origEnd = b.endSlot;
+    const dur = origEnd - origStart;
+
+    const onMove = ev => {
+      const dy = ev.clientY - startY;
+      const dSlots = Math.round(dy / SLOT_H / snapSlots) * snapSlots;
+      if (Math.abs(dSlots) > 0) didDrag = true;
+      const ns = clamp(origStart + dSlots, 0, TOTAL_SLOTS - dur);
+      b.startSlot = ns; b.endSlot = ns + dur;
+      el.style.top = b.startSlot * SLOT_H + 1 + 'px';
+    };
+    const onUp = ev => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (!didDrag) {
+        openModal('edit', { ...b });
+      } else {
+        saveToStorage();
+        refreshStats();
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+
+  resizeHandle.addEventListener('mousedown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const startY = e.clientY, origEnd = b.endSlot;
+    const onMove = ev => {
+      const dy = ev.clientY - startY;
+      const dSlots = Math.round(dy / SLOT_H / snapSlots) * snapSlots;
+      const ne = clamp(origEnd + dSlots, b.startSlot + snapSlots, TOTAL_SLOTS);
+      b.endSlot = ne;
+      el.style.height = (b.endSlot - b.startSlot) * SLOT_H - 1 + 'px';
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      saveToStorage();
+      refreshStats();
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+}
+
+/* ── Category sidebar ── */
+function renderCatList() {
+  const list = document.getElementById('cat-list');
+  list.innerHTML = '';
+  categories.forEach(cat => {
+    const item = document.createElement('div');
+    item.className = 'cat-item';
+
+    // Toggle checkbox
+    const chk = document.createElement('div');
+    chk.className = 'cat-check' + (cat.visible ? ' checked' : '');
+    chk.style.background = cat.visible ? cat.color : '';
+    chk.style.borderColor = cat.visible ? cat.color : '';
+    chk.innerHTML = `<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 4l2 2L6.5 2" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    chk.addEventListener('click', () => {
+      cat.visible = !cat.visible;
+      saveToStorage();
+      renderCatList();
+      refreshBlockVisibility();
+      refreshStats();
+    });
+    item.appendChild(chk);
+
+    const dot = document.createElement('div');
+    dot.className = 'cat-dot';
+    dot.style.background = cat.color;
+    item.appendChild(dot);
+
+    const name = document.createElement('span');
+    name.className = 'cat-name';
+    name.textContent = cat.name;
+    item.appendChild(name);
+
+    const hrs = document.createElement('span');
+    hrs.className = 'cat-hrs';
+    const total = blocks.filter(b => b.catId === cat.id).reduce((s,b) => s + b.endSlot - b.startSlot, 0);
+    hrs.textContent = slotsToHours(total) + 'h';
+    item.appendChild(hrs);
+
+    const del = document.createElement('button');
+    del.className = 'cat-del-btn';
+    del.innerHTML = '×';
+    del.title = 'Delete category';
+    del.addEventListener('click', () => {
+      if (blocks.some(b => b.catId === cat.id)) {
+        if (!confirm(`Delete "${cat.name}"? All its blocks will be removed.`)) return;
+        blocks = blocks.filter(b => b.catId !== cat.id);
+      }
+      categories = categories.filter(c => c.id !== cat.id);
+      saveToStorage();
+      renderCatList();
+      renderBlocks();
+      refreshStats();
+    });
+    item.appendChild(del);
+
+    list.appendChild(item);
+  });
+}
+
+function refreshBlockVisibility() {
+  categories.forEach(cat => {
+    blocks.filter(b => b.catId === cat.id).forEach(b => {
+      const el = document.getElementById(`block-${b.id}`);
+      if (el) el.classList.toggle('hidden', !cat.visible);
+    });
+  });
+}
+
+/* ── Stats panel ── */
+function refreshStats() {
+  // Sleep
+  let sleepSlots = 0;
+  for (let i = 0; i < TOTAL_SLOTS; i++) { if (isSleepSlot(i)) sleepSlots++; }
+  const sleepHpD = slotsToHours(sleepSlots);
+  const sleepHpW = Math.round(sleepHpD * 7 * 10) / 10;
+  document.getElementById('sleep-stat').textContent = `Sleep: ${sleepHpD}h/day · ${sleepHpW}h/week`;
+
+  // Per-category
+  const catTotals = {};
+  blocks.forEach(b => {
+    catTotals[b.catId] = (catTotals[b.catId] || 0) + (b.endSlot - b.startSlot);
+  });
+
+  const statsList = document.getElementById('stats-list');
+  statsList.innerHTML = '';
+
+  // Sleep row
+  const sleepRow = makeStatRow('#7b7fd4', 'Sleep', sleepHpW, sleepHpW);
+  statsList.appendChild(sleepRow);
+
+  let maxH = Math.max(sleepHpW, ...Object.values(catTotals).map(v => slotsToHours(v)), 1);
+
+  categories.forEach(cat => {
+    const h = slotsToHours(catTotals[cat.id] || 0);
+    statsList.appendChild(makeStatRow(cat.color, cat.name, h, maxH));
+  });
+}
+
+function makeStatRow(color, name, hours, maxHours) {
+  const row = document.createElement('div');
+  row.className = 'stat-row';
+
+  const top = document.createElement('div');
+  top.className = 'stat-top';
+
+  const dot = document.createElement('div');
+  dot.className = 'stat-dot';
+  dot.style.background = color;
+
+  const nm = document.createElement('span');
+  nm.className = 'stat-name';
+  nm.textContent = name;
+
+  const val = document.createElement('span');
+  val.className = 'stat-val';
+  val.textContent = hours + 'h';
+
+  top.appendChild(dot); top.appendChild(nm); top.appendChild(val);
+  row.appendChild(top);
+
+  const track = document.createElement('div');
+  track.className = 'stat-track';
+  const fill = document.createElement('div');
+  fill.className = 'stat-fill';
+  fill.style.background = color;
+  fill.style.width = Math.min(100, (hours / maxHours) * 100) + '%';
+  track.appendChild(fill);
+  row.appendChild(track);
+
+  return row;
+}
+
+/* ── Modal ── */
+let modalMode = null; // 'new' or 'edit'
+let modalData = {};
+
+function buildCatSelect() {
+  const sel = document.getElementById('f-cat');
+  sel.innerHTML = '';
+  categories.forEach(cat => {
+    const o = document.createElement('option');
+    o.value = cat.id;
+    o.textContent = cat.name;
+    sel.appendChild(o);
+  });
+}
+
+function openModal(mode, data) {
+  modalMode = mode; modalData = data;
+  buildCatSelect();
+
+  document.getElementById('modal-title').textContent = mode === 'new' ? 'New Block' : 'Edit Block';
+  document.getElementById('modal-time-info').textContent =
+    `${DAYS_FULL[data.dayIdx]} · ${slotToTimeLabel(data.startSlot)} – ${slotToTimeLabel(data.endSlot)}  (${slotsToHours(data.endSlot - data.startSlot)}h)`;
+
+  document.getElementById('f-title').value = data.title || '';
+  document.getElementById('f-cat').value   = data.catId || categories[0]?.id || '';
+  document.getElementById('f-loc').value   = data.location || '';
+  document.getElementById('f-notes').value = data.notes || '';
+
+  document.getElementById('modal-del-btn').style.display = mode === 'edit' ? 'block' : 'none';
+  document.getElementById('modal-save-btn').textContent  = mode === 'new' ? 'Create block' : 'Save changes';
+
+  document.getElementById('modal-backdrop').classList.add('open');
+  document.getElementById('f-title').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  modalMode = null; modalData = {};
+}
+
+function saveModal() {
+  const d = {
+    catId:    document.getElementById('f-cat').value,
+    title:    document.getElementById('f-title').value.trim(),
+    location: document.getElementById('f-loc').value.trim(),
+    notes:    document.getElementById('f-notes').value.trim(),
+  };
+  if (modalMode === 'new') {
+    blocks.push({ id: uid(), dayIdx: modalData.dayIdx,
+      startSlot: modalData.startSlot, endSlot: modalData.endSlot, ...d });
+  } else {
+    const b = blocks.find(x => x.id === modalData.id);
+    if (b) Object.assign(b, d);
+  }
+  closeModal();
+  renderBlocks();
+  renderCatList();
+  refreshStats();
+  saveToStorage();
+}
+
+function deleteBlock() {
+  if (!modalData.id) return;
+  blocks = blocks.filter(b => b.id !== modalData.id);
+  closeModal();
+  renderBlocks();
+  renderCatList();
+  refreshStats();
+  saveToStorage();
+}
+
+/* ── LocalStorage ── */
+function saveToStorage() {
+  localStorage.setItem('idealweek_blocks', JSON.stringify(blocks));
+  localStorage.setItem('idealweek_cats', JSON.stringify(categories));
+  localStorage.setItem('idealweek_wake', wakeSlot);
+  localStorage.setItem('idealweek_sleep', sleepSlot);
+}
+
+function loadFromStorage() {
+  try {
+    const b = localStorage.getItem('idealweek_blocks');
+    if (b) { blocks = JSON.parse(b); nextId = Math.max(nextId, ...blocks.map(x => parseInt(x.id)||0)) + 1; }
+    const c = localStorage.getItem('idealweek_cats');
+    if (c) categories = JSON.parse(c);
+    const w = localStorage.getItem('idealweek_wake');
+    if (w !== null) wakeSlot = parseInt(w);
+    const s = localStorage.getItem('idealweek_sleep');
+    if (s !== null) sleepSlot = parseInt(s);
+  } catch(e) {}
+}
+
+/* ── Init ── */
+function init() {
+  loadFromStorage();
+  buildTimeSelects();
+  buildGrid();
+  renderCatList();
+  renderBlocks();
+  refreshStats();
+
+  // Snap select
+  document.getElementById('snap-select').addEventListener('change', e => {
+    snapSlots = parseInt(e.target.value);
+  });
+
+  // Wake / sleep selects
+  document.getElementById('wake-select').addEventListener('change', e => {
+    wakeSlot = parseInt(e.target.value);
+    refreshSleepZones();
+    refreshStats();
+    saveToStorage();
+  });
+  document.getElementById('sleep-select').addEventListener('change', e => {
+    sleepSlot = parseInt(e.target.value);
+    refreshSleepZones();
+    refreshStats();
+    saveToStorage();
+  });
+
+  // Add category
+  document.getElementById('add-cat-btn').addEventListener('click', addCat);
+  document.getElementById('new-cat-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addCat();
+  });
+
+  // Modal
+  document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+  document.getElementById('modal-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-backdrop')) closeModal();
+  });
+  document.getElementById('modal-save-btn').addEventListener('click', saveModal);
+  document.getElementById('modal-del-btn').addEventListener('click', deleteBlock);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+}
+
+function addCat() {
+  const name = document.getElementById('new-cat-name').value.trim();
+  if (!name) return;
+  const color = document.getElementById('new-cat-color').value;
+  categories.push({ id: uid(), name, color, visible: true });
+  document.getElementById('new-cat-name').value = '';
+  saveToStorage();
+  renderCatList();
+  refreshStats();
+  buildCatSelect();
+}
+
+init();
+</script>
+</body>
+</html>

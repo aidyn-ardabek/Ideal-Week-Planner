@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ideal Week Planner</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f7f6f3; --surface: #fff; --border: #e8e5de; --border-light: #f0ede6;
+  --text: #1a1a18; --text-muted: #888880; --text-faint: #b8b5ae; --sleep-bg: #eeeef8;
+  --sidebar-w: 236px; --header-h: 36px; --toolbar-h: 44px; --time-w: 54px;
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--text);}
+::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#ccc;border-radius:99px;}
+#app{display:flex;height:100vh;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.sb-header{padding:16px 16px 12px;border-bottom:1px solid var(--border);}
+.sb-header h1{font-size:15px;font-weight:700;letter-spacing:-0.3px;}
+.sb-header p{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.sb-scroll{flex:1;overflow-y:auto;padding:12px 12px 0;}
+.section-label{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--text-faint);margin:12px 2px 7px;}
+.section-label:first-child{margin-top:2px;}
+
+.sleep-box{background:#f0f2ff;border-radius:9px;padding:10px 11px;}
+.sleep-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.sleep-row:last-of-type{margin-bottom:0;}
+.sleep-row label{font-size:12px;color:#555;}
+.sleep-row select{font-size:11px;padding:4px 7px;border:1px solid #d0d4ee;border-radius:5px;background:#fff;color:var(--text);cursor:pointer;outline:none;}
+.sleep-stat{margin-top:8px;background:#e2e6ff;border-radius:6px;padding:6px 9px;font-size:11px;color:#4a58c8;font-weight:500;}
+
+.cat-list{display:flex;flex-direction:column;gap:3px;}
+.cat-item{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:7px;cursor:default;transition:background .1s;}
+.cat-item:hover{background:#f5f4f0;}
+.cat-check{width:15px;height:15px;border-radius:4px;border:1.5px solid #ccc;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .1s;}
+.cat-check.checked{border-color:transparent;}
+.cat-check svg{display:none;}.cat-check.checked svg{display:block;}
+.cat-color-swatch{width:14px;height:14px;border-radius:50%;flex-shrink:0;cursor:pointer;border:1.5px solid rgba(0,0,0,.12);position:relative;overflow:hidden;}
+.cat-color-swatch input[type="color"]{position:absolute;inset:-4px;opacity:0;cursor:pointer;width:200%;height:200%;border:none;padding:0;}
+/* Editable name inline */
+.cat-name-input{flex:1;font-size:12px;font-family:inherit;border:none;background:transparent;outline:none;color:var(--text);min-width:0;cursor:default;}
+.cat-name-input:focus{cursor:text;background:#fff;border-bottom:1px solid #ccc;}
+.cat-hrs{font-size:11px;color:var(--text-faint);flex-shrink:0;min-width:32px;text-align:right;}
+.cat-del-btn{width:16px;height:16px;background:none;border:none;color:#ccc;font-size:14px;cursor:pointer;flex-shrink:0;line-height:1;padding:0;opacity:0;transition:opacity .1s;display:flex;align-items:center;justify-content:center;}
+.cat-item:hover .cat-del-btn{opacity:1;}.cat-del-btn:hover{color:#e55;}
+
+.add-cat{display:flex;gap:5px;align-items:center;margin-top:9px;padding-bottom:4px;}
+.add-cat input[type="text"]{flex:1;min-width:0;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;outline:none;background:#fff;color:var(--text);}
+.add-cat input[type="text"]:focus{border-color:#999;}
+input[type="color"].color-swatch{width:28px;height:28px;border:1px solid var(--border);border-radius:6px;padding:2px;cursor:pointer;background:none;flex-shrink:0;}
+.add-cat-btn{padding:5px 10px;background:#1a1a18;color:#fff;border:none;border-radius:6px;font-size:11px;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.add-cat-btn:hover{background:#444;}
+
+#stats-panel{padding:10px 12px 14px;border-top:1px solid var(--border);}
+.stats-label{font-size:10px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--text-faint);margin-bottom:9px;}
+.stat-row{margin-bottom:6px;}
+.stat-top{display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+.stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.stat-name{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.stat-val{font-size:12px;font-weight:500;flex-shrink:0;}
+.stat-track{height:3px;background:#f0ede8;border-radius:2px;overflow:hidden;margin-left:15px;}
+.stat-fill{height:100%;border-radius:2px;transition:width .3s ease;}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#toolbar{height:var(--toolbar-h);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;}
+#toolbar h2{font-size:13px;font-weight:600;}
+.tb-sep{width:1px;height:16px;background:var(--border);margin:0 2px;}
+.zoom-ctrl{display:flex;align-items:center;gap:6px;}
+.zoom-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#555;user-select:none;line-height:1;}
+.zoom-btn:hover{background:#f5f4f0;}
+.zoom-label{font-size:11px;color:var(--text-muted);min-width:52px;text-align:center;}
+.tb-hint{font-size:11px;color:var(--text-faint);margin-left:auto;}
+
+/* GRID */
+#grid-scroll{flex:1;overflow:auto;position:relative;}
+#grid{display:flex;min-width:max-content;}
+#time-col{width:var(--time-w);min-width:var(--time-w);flex-shrink:0;position:sticky;left:0;z-index:20;background:var(--bg);}
+.time-col-head{height:var(--header-h);position:sticky;top:0;background:var(--bg);z-index:25;border-bottom:1px solid var(--border);border-right:1px solid var(--border);}
+.time-label{display:flex;align-items:flex-start;justify-content:flex-end;padding-right:8px;padding-top:1px;font-size:10px;color:var(--text-faint);user-select:none;line-height:1;position:absolute;left:0;right:0;}
+#days-area{flex:1;display:flex;}
+.day-col{flex:1;min-width:90px;position:relative;border-right:1px solid var(--border-light);}
+.day-col:last-child{border-right:none;}
+.day-head{height:var(--header-h);position:sticky;top:0;background:var(--surface);z-index:10;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#666;user-select:none;}
+.day-body{position:relative;cursor:crosshair;}
+.h-line{position:absolute;left:0;right:0;pointer-events:none;}
+.h-line.hour{border-top:1px solid var(--border);}
+.h-line.half{border-top:1px dashed #ede9e2;}
+.h-line.sleep{background:var(--sleep-bg);}
+.sel-ghost{position:absolute;left:3px;right:3px;border-radius:5px;border:2px dashed rgba(60,60,60,.35);background:rgba(60,60,60,.05);pointer-events:none;z-index:30;}
+
+/* BLOCKS */
+.block{position:absolute;border-radius:5px;overflow:hidden;cursor:grab;user-select:none;display:flex;flex-direction:column;transition:box-shadow .1s;min-height:8px;}
+.block:hover{box-shadow:0 2px 10px rgba(0,0,0,.15);}
+.block:active{cursor:grabbing;}
+.block.hidden{display:none!important;}
+.block-body{flex:1;padding:3px 6px 2px;overflow:hidden;min-height:0;}
+.block-title{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;color:#1a1a18;}
+.block-cat-label{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;opacity:.75;}
+.block-loc{font-size:10px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+.block-resize{height:6px;cursor:ns-resize;flex-shrink:0;background:rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;}
+.block-resize::after{content:'';width:18px;height:2px;background:rgba(0,0,0,.2);border-radius:1px;}
+
+/* TIME TOOLTIP */
+#time-tooltip{position:fixed;background:#1a1a18;color:#fff;font-size:11px;padding:3px 8px;border-radius:5px;pointer-events:none;z-index:9999;display:none;white-space:nowrap;font-family:inherit;}
+
+/* MODAL */
+#modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center;}
+#modal-backdrop.open{display:flex;}
+#modal{background:#fff;border-radius:12px;width:360px;box-shadow:0 12px 40px rgba(0,0,0,.18);overflow:hidden;animation:modal-in .14s ease;}
+@keyframes modal-in{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:none;}}
+.modal-head{padding:14px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;}
+.modal-head h3{font-size:14px;font-weight:600;}
+.modal-close{background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;line-height:1;padding:2px 6px;}
+.modal-close:hover{color:#555;}
+.modal-body{padding:14px 16px;}
+.modal-day-info{font-size:11px;color:#aaa;margin-bottom:12px;font-weight:500;}
+.time-row{display:flex;gap:10px;}
+.time-row .form-group{flex:1;}
+.form-group{margin-bottom:12px;}
+.form-group:last-child{margin-bottom:0;}
+.form-group label{display:block;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#aaa;margin-bottom:5px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;outline:none;transition:border-color .1s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#888;}
+.form-group textarea{resize:vertical;min-height:56px;}
+
+/* Repeat section in modal */
+.repeat-section{margin-bottom:12px;}
+.repeat-label{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#aaa;margin-bottom:7px;display:block;}
+.day-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.day-chip{width:32px;height:28px;border-radius:6px;border:1px solid #ddd;background:#fff;font-size:11px;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#666;transition:all .1s;user-select:none;}
+.day-chip.on{background:#1a1a18;color:#fff;border-color:#1a1a18;}
+.day-chip:hover:not(.on){background:#f5f4f0;}
+
+.modal-foot{padding:10px 16px;border-top:1px solid #eee;display:flex;gap:8px;}
+.btn-delete{padding:7px 13px;background:#fff;border:1px solid #eee;border-radius:7px;font-size:12px;font-family:inherit;color:#e44;cursor:pointer;}
+.btn-delete:hover{background:#fff4f4;}
+.btn-copy{padding:7px 13px;background:#fff;border:1px solid #eee;border-radius:7px;font-size:12px;font-family:inherit;color:#555;cursor:pointer;}
+.btn-copy:hover{background:#f5f4f0;}
+.btn-save{flex:1;padding:8px;background:#1a1a18;color:#fff;border:none;border-radius:7px;font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;}
+.btn-save:hover{background:#3a3a38;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="sb-header">
+      <h1>Ideal Week</h1>
+      <p>Design your perfect week</p>
+    </div>
+    <div class="sb-scroll">
+      <div class="section-label">Day Boundaries</div>
+      <div class="sleep-box">
+        <div class="sleep-row"><label>Wake up</label><select id="wake-select"></select></div>
+        <div class="sleep-row"><label>Sleep at</label><select id="sleep-select"></select></div>
+        <div class="sleep-stat" id="sleep-stat">Sleep: — · —</div>
+      </div>
+      <div class="section-label">Categories <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;font-weight:400;">(click name to rename)</span></div>
+      <div class="cat-list" id="cat-list"></div>
+      <div class="add-cat">
+        <input type="text" id="new-cat-name" placeholder="New category…" maxlength="24">
+        <input type="color" id="new-cat-color" class="color-swatch" value="#4a9eff">
+        <button class="add-cat-btn" id="add-cat-btn">Add</button>
+      </div>
+    </div>
+    <div id="stats-panel">
+      <div class="stats-label">Weekly Hours</div>
+      <div id="stats-list"></div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="toolbar">
+      <h2>Weekly Grid</h2>
+      <div class="tb-sep"></div>
+      <div class="zoom-ctrl">
+        <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+        <span class="zoom-label" id="zoom-label">60 px/h</span>
+        <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+      </div>
+      <span class="tb-hint">Drag to create · Click to edit · Drag bottom edge to resize</span>
+    </div>
+    <div id="grid-scroll">
+      <div id="grid">
+        <div id="time-col"><div class="time-col-head"></div></div>
+        <div id="days-area"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="time-tooltip"></div>
+
+<div id="modal-backdrop">
+  <div id="modal">
+    <div class="modal-head">
+      <h3 id="modal-title-text">New Block</h3>
+      <button class="modal-close" id="modal-close-btn">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-day-info" id="modal-day-info"></div>
+      <div class="time-row">
+        <div class="form-group"><label>Start</label><input type="time" id="f-start" step="60"></div>
+        <div class="form-group"><label>End</label><input type="time" id="f-end" step="60"></div>
+      </div>
+      <div class="form-group"><label>Title</label><input type="text" id="f-title" placeholder="e.g. Lunch, Deep work…" maxlength="60"></div>
+      <div class="form-group"><label>Category</label><select id="f-cat"></select></div>
+      <div class="form-group"><label>Location (optional)</label><input type="text" id="f-loc" placeholder="e.g. Home, Office…" maxlength="60"></div>
+      <div class="form-group"><label>Notes (optional)</label><textarea id="f-notes" placeholder="Any details…"></textarea></div>
+      <!-- Repeat / Copy to days -->
+      <div class="repeat-section">
+        <span class="repeat-label">Also copy to days</span>
+        <div class="day-chips" id="repeat-chips"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-delete" id="modal-del-btn" style="display:none">Delete</button>
+      <button class="btn-save" id="modal-save-btn">Create block</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONSTANTS & STATE
+═══════════════════════════════════════════ */
+const DAYS_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAYS_FULL  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const MINS       = 24 * 60;
+// Added 42 between 36 and 48
+const ZOOM_LEVELS = [24, 36, 42, 48, 60, 80, 100, 120, 160, 200];
+let zoomIdx = 4; // default 60px/hr
+
+function pxPerMin(){ return ZOOM_LEVELS[zoomIdx] / 60; }
+function dayH(){ return MINS * pxPerMin(); }
+function minToY(m){ return m * pxPerMin(); }
+function yToMin(y){ return Math.round(y / pxPerMin()); }
+function yToMinSnapped(y){ return Math.round(yToMin(y) / 15) * 15; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+let wakeMin  = 7*60;
+let sleepMin = 23*60;
+let nextId   = 1;
+const uid    = () => String(nextId++);
+
+let categories = [
+  {id:'study',    name:'Study',    color:'#4a9eff', visible:true},
+  {id:'work',     name:'Work',     color:'#ff8c42', visible:true},
+  {id:'food',     name:'Food',     color:'#4caf7d', visible:true},
+  {id:'commute',  name:'Commute',  color:'#f4c542', visible:true},
+  {id:'personal', name:'Personal', color:'#e87b9b', visible:true},
+  {id:'gym',      name:'Gym',      color:'#9c6fff', visible:true},
+];
+let blocks = [];
+
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+function getCat(id){ return categories.find(c=>c.id===id); }
+function minToTimeStr(m){ return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+function timeStrToMin(s){ const [h,m]=s.split(':').map(Number); return h*60+m; }
+function minToLabel(m){
+  const h=Math.floor(m/60)%24, mn=m%60, ap=h<12?'am':'pm', h12=h===0?12:h>12?h-12:h;
+  return mn===0?`${h12}${ap}`:`${h12}:${String(mn).padStart(2,'0')}`;
+}
+
+// Format minutes as "Xh Ym" — no more decimal hours
+function fmtDuration(totalMins){
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if(h===0) return `${m}m`;
+  if(m===0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+// Format total minutes as weekly summary "Xh Ym / week"
+function fmtWeekly(totalMins){
+  return fmtDuration(totalMins) + '/wk';
+}
+
+function isSleepMin(m){
+  if(wakeMin<=sleepMin) return m<wakeMin||m>=sleepMin;
+  return m>=sleepMin&&m<wakeMin;
+}
+
+/* ═══════════════════════════════════════════
+   TIME SELECTS
+═══════════════════════════════════════════ */
+function buildTimeSelects(){
+  ['wake-select','sleep-select'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='';
+    for(let h=0;h<24;h++) for(let m=0;m<60;m+=30){
+      const o=document.createElement('option');
+      o.value=h*60+m; o.textContent=minToLabel(h*60+m); sel.appendChild(o);
+    }
+  });
+  document.getElementById('wake-select').value=wakeMin;
+  document.getElementById('sleep-select').value=sleepMin;
+}
+
+/* ═══════════════════════════════════════════
+   GRID
+═══════════════════════════════════════════ */
+function buildGrid(){
+  buildTimeCol();
+  buildDays();
+  renderBlocks();
+  updateZoomLabel();
+}
+
+function buildTimeCol(){
+  const col=document.getElementById('time-col');
+  col.querySelectorAll('.time-label').forEach(e=>e.remove());
+  for(let h=0;h<24;h++){
+    const lbl=document.createElement('div');
+    lbl.className='time-label';
+    lbl.style.top=(36+minToY(h*60))+'px';
+    lbl.textContent=minToLabel(h*60);
+    col.appendChild(lbl);
+  }
+}
+
+function buildDays(){
+  const area=document.getElementById('days-area');
+  area.innerHTML='';
+  for(let di=0;di<7;di++){
+    const col=document.createElement('div');
+    col.className='day-col'; col.id=`dc-${di}`;
+    const head=document.createElement('div');
+    head.className='day-head'; head.textContent=DAYS_SHORT[di];
+    col.appendChild(head);
+    const body=document.createElement('div');
+    body.className='day-body'; body.id=`db-${di}`;
+    body.style.height=dayH()+'px';
+    drawLines(body);
+    attachDayDrag(body,di);
+    col.appendChild(body);
+    area.appendChild(col);
+  }
+}
+
+function drawLines(body){
+  body.querySelectorAll('.h-line').forEach(e=>e.remove());
+  let inS=false,bStart=0;
+  for(let m=0;m<=MINS;m++){
+    const s=isSleepMin(m%MINS||0);
+    if(s&&!inS){bStart=m;inS=true;}
+    if(!s&&inS){addBand(body,bStart,m);inS=false;}
+  }
+  if(inS) addBand(body,bStart,MINS);
+  for(let h=0;h<24;h++){
+    addLine(body,'hour',h*60);
+    addLine(body,'half',h*60+30);
+  }
+}
+function addBand(body,s,e){
+  const d=document.createElement('div');
+  d.className='h-line sleep';
+  d.style.top=minToY(s)+'px';
+  d.style.height=minToY(e-s)+'px';
+  body.appendChild(d);
+}
+function addLine(body,cls,m){
+  const d=document.createElement('div');
+  d.className=`h-line ${cls}`;
+  d.style.top=minToY(m)+'px';
+  body.appendChild(d);
+}
+function refreshSleepZones(){
+  document.querySelectorAll('.day-body').forEach(b=>drawLines(b));
+}
+
+/* ═══════════════════════════════════════════
+   ZOOM
+═══════════════════════════════════════════ */
+function updateZoomLabel(){
+  document.getElementById('zoom-label').textContent=`${ZOOM_LEVELS[zoomIdx]} px/h`;
+}
+function applyZoom(){
+  document.querySelectorAll('.day-body').forEach(b=>{
+    b.style.height=dayH()+'px';
+    drawLines(b);
+  });
+  buildTimeCol();
+  renderBlocks();
+  updateZoomLabel();
+  saveToStorage();
+}
+document.getElementById('zoom-in').onclick=()=>{if(zoomIdx<ZOOM_LEVELS.length-1){zoomIdx++;applyZoom();}};
+document.getElementById('zoom-out').onclick=()=>{if(zoomIdx>0){zoomIdx--;applyZoom();}};
+
+/* ═══════════════════════════════════════════
+   DRAG TO CREATE
+═══════════════════════════════════════════ */
+let selState=null, selGhost=null;
+const TT=document.getElementById('time-tooltip');
+
+function attachDayDrag(body,di){
+  body.addEventListener('mousedown',e=>{
+    if(e.button!==0||e.target.closest('.block')) return;
+    e.preventDefault();
+    const rect=body.getBoundingClientRect();
+    const startMin=clamp(yToMinSnapped(e.clientY-rect.top),0,MINS);
+    selState={di,startMin,endMin:startMin+15};
+    selGhost=document.createElement('div');
+    selGhost.className='sel-ghost';
+    body.appendChild(selGhost);
+    updateGhost(body);
+    TT.style.display='block';
+    const onMove=ev=>{
+      const r=body.getBoundingClientRect();
+      const cur=clamp(yToMinSnapped(ev.clientY-r.top),0,MINS);
+      selState.endMin=Math.max(selState.startMin+5,cur);
+      updateGhost(body);
+      TT.textContent=`${minToLabel(selState.startMin)} – ${minToLabel(selState.endMin)}`;
+      TT.style.left=(ev.clientX+14)+'px'; TT.style.top=(ev.clientY-10)+'px';
+    };
+    const onUp=()=>{
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+      TT.style.display='none';
+      if(selGhost){selGhost.remove();selGhost=null;}
+      const s=selState; selState=null;
+      if(!s||s.endMin-s.startMin<5) return;
+      const fc=categories.find(c=>c.visible);
+      openModal('new',{dayIdx:s.di,startMin:s.startMin,endMin:s.endMin,catId:fc?.id||categories[0]?.id,title:'',location:'',notes:''});
+    };
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('mouseup',onUp);
+  });
+}
+function updateGhost(body){
+  if(!selGhost||!selState) return;
+  selGhost.style.top=minToY(selState.startMin)+'px';
+  selGhost.style.height=Math.max(4,minToY(selState.endMin-selState.startMin))+'px';
+}
+
+/* ═══════════════════════════════════════════
+   OVERLAP LAYOUT
+═══════════════════════════════════════════ */
+function computeLayout(dayBlocks){
+  const sorted=[...dayBlocks].sort((a,b)=>a.startMin-b.startMin);
+  const info={};
+  const cols=[];
+  sorted.forEach(b=>{
+    let placed=false;
+    for(let ci=0;ci<cols.length;ci++){
+      if(cols[ci]<=b.startMin){info[b.id]={col:ci};cols[ci]=b.endMin;placed=true;break;}
+    }
+    if(!placed){info[b.id]={col:cols.length};cols.push(b.endMin);}
+  });
+  sorted.forEach(b=>{
+    let maxCol=0;
+    sorted.forEach(o=>{
+      if(o.startMin<b.endMin&&o.endMin>b.startMin) maxCol=Math.max(maxCol,info[o.id].col);
+    });
+    info[b.id].totalCols=maxCol+1;
+  });
+  return info;
+}
+
+/* ═══════════════════════════════════════════
+   RENDER BLOCKS
+═══════════════════════════════════════════ */
+function renderBlocks(){
+  document.querySelectorAll('.block').forEach(e=>e.remove());
+  for(let di=0;di<7;di++){
+    const body=document.getElementById(`db-${di}`);
+    if(!body) continue;
+    const dayBlocks=blocks.filter(b=>b.dayIdx===di);
+    const layout=computeLayout(dayBlocks);
+    dayBlocks.forEach(b=>{
+      const cat=getCat(b.catId); if(!cat) return;
+      const {col,totalCols}=layout[b.id]||{col:0,totalCols:1};
+      const el=document.createElement('div');
+      el.className='block'+(cat.visible?'':' hidden');
+      el.id=`blk-${b.id}`;
+      el.style.top=minToY(b.startMin)+'px';
+      el.style.height=Math.max(8,minToY(b.endMin-b.startMin))+'px';
+      const GAP=3, IND=16;
+      el.style.left=`${GAP+col*IND}px`;
+      el.style.right=`${GAP+Math.max(0,(totalCols-col-1)*IND*0.4)}px`;
+      el.style.zIndex=5+col;
+      el.style.background=cat.color+'26';
+      el.style.borderLeft=`3px solid ${cat.color}`;
+      const inner=document.createElement('div');
+      inner.className='block-body';
+      if(b.title){const t=document.createElement('div');t.className='block-title';t.textContent=b.title;inner.appendChild(t);}
+      const cl=document.createElement('div');cl.className='block-cat-label';cl.style.color=cat.color;cl.textContent=cat.name;inner.appendChild(cl);
+      if(b.location){const lc=document.createElement('div');lc.className='block-loc';lc.textContent='📍 '+b.location;inner.appendChild(lc);}
+      el.appendChild(inner);
+      const rz=document.createElement('div');rz.className='block-resize';el.appendChild(rz);
+      attachBlock(el,b,rz);
+      body.appendChild(el);
+    });
+  }
+}
+
+function attachBlock(el,b,rz){
+  let moved=false;
+  el.addEventListener('mousedown',e=>{
+    if(e.button!==0||e.target===rz||rz.contains(e.target)) return;
+    e.preventDefault();e.stopPropagation();
+    moved=false;
+    const sy=e.clientY,os=b.startMin,dur=b.endMin-b.startMin;
+    const onMove=ev=>{
+      const dm=Math.round((ev.clientY-sy)/pxPerMin());
+      if(Math.abs(dm)>=1) moved=true;
+      b.startMin=clamp(os+dm,0,MINS-dur); b.endMin=b.startMin+dur;
+      el.style.top=minToY(b.startMin)+'px';
+      TT.style.display='block';
+      TT.textContent=`${minToLabel(b.startMin)} – ${minToLabel(b.endMin)}`;
+      TT.style.left=(ev.clientX+14)+'px'; TT.style.top=(ev.clientY-10)+'px';
+    };
+    const onUp=ev=>{
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+      TT.style.display='none';
+      if(!moved){openModal('edit',{...b});}
+      else{renderBlocks();refreshStats();saveToStorage();}
+    };
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('mouseup',onUp);
+  });
+  rz.addEventListener('mousedown',e=>{
+    e.preventDefault();e.stopPropagation();
+    const sy=e.clientY,oe=b.endMin;
+    const onMove=ev=>{
+      const dm=Math.round((ev.clientY-sy)/pxPerMin());
+      b.endMin=clamp(oe+dm,b.startMin+5,MINS);
+      el.style.height=Math.max(8,minToY(b.endMin-b.startMin))+'px';
+      TT.style.display='block';
+      TT.textContent=`→ ${minToLabel(b.endMin)} (${fmtDuration(b.endMin-b.startMin)})`;
+      TT.style.left=(ev.clientX+14)+'px'; TT.style.top=(ev.clientY-10)+'px';
+    };
+    const onUp=()=>{
+      window.removeEventListener('mousemove',onMove);
+      window.removeEventListener('mouseup',onUp);
+      TT.style.display='none';
+      renderBlocks();refreshStats();saveToStorage();
+    };
+    window.addEventListener('mousemove',onMove);
+    window.addEventListener('mouseup',onUp);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   CATEGORY SIDEBAR  (inline rename)
+═══════════════════════════════════════════ */
+function renderCatList(){
+  const list=document.getElementById('cat-list');
+  list.innerHTML='';
+  categories.forEach(cat=>{
+    const item=document.createElement('div');item.className='cat-item';
+
+    // Visibility checkbox
+    const chk=document.createElement('div');
+    chk.className='cat-check'+(cat.visible?' checked':'');
+    chk.style.background=cat.visible?cat.color:'';
+    chk.style.borderColor=cat.visible?cat.color:'';
+    chk.innerHTML=`<svg width="8" height="8" viewBox="0 0 8 8"><path d="M1.5 4l2 2L6.5 2" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    chk.addEventListener('click',()=>{cat.visible=!cat.visible;saveToStorage();renderCatList();refreshBlockVisibility();refreshStats();});
+    item.appendChild(chk);
+
+    // Editable color dot
+    const sw=document.createElement('div');
+    sw.className='cat-color-swatch';sw.style.background=cat.color;sw.title='Change color';
+    const ci=document.createElement('input');ci.type='color';ci.value=cat.color;
+    ci.addEventListener('input',e=>{cat.color=e.target.value;sw.style.background=cat.color;});
+    ci.addEventListener('change',()=>{saveToStorage();renderCatList();renderBlocks();refreshStats();});
+    sw.appendChild(ci);item.appendChild(sw);
+
+    // Editable name — just an input styled transparently
+    const nm=document.createElement('input');
+    nm.type='text';nm.className='cat-name-input';
+    nm.value=cat.name;nm.maxLength=24;nm.title='Click to rename';
+    nm.addEventListener('change',()=>{
+      const v=nm.value.trim();
+      if(v){cat.name=v;saveToStorage();renderBlocks();refreshStats();}
+      else{nm.value=cat.name;}
+    });
+    nm.addEventListener('keydown',e=>{if(e.key==='Enter')nm.blur();if(e.key==='Escape'){nm.value=cat.name;nm.blur();}});
+    // prevent drag-to-create when clicking the name input
+    nm.addEventListener('mousedown',e=>e.stopPropagation());
+    item.appendChild(nm);
+
+    // Hours badge
+    const totalMins=blocks.filter(b=>b.catId===cat.id).reduce((s,b)=>s+b.endMin-b.startMin,0);
+    const hrs=document.createElement('span');hrs.className='cat-hrs';
+    hrs.textContent=fmtDuration(totalMins);item.appendChild(hrs);
+
+    // Delete
+    const del=document.createElement('button');del.className='cat-del-btn';del.innerHTML='×';
+    del.addEventListener('click',()=>{
+      if(blocks.some(b=>b.catId===cat.id)&&!confirm(`Delete "${cat.name}"? All its blocks will be removed.`)) return;
+      blocks=blocks.filter(b=>b.catId!==cat.id);
+      categories=categories.filter(c=>c.id!==cat.id);
+      saveToStorage();renderCatList();renderBlocks();refreshStats();
+    });
+    item.appendChild(del);
+    list.appendChild(item);
+  });
+}
+
+function refreshBlockVisibility(){
+  categories.forEach(cat=>{
+    blocks.filter(b=>b.catId===cat.id).forEach(b=>{
+      const el=document.getElementById(`blk-${b.id}`);
+      if(el) el.classList.toggle('hidden',!cat.visible);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════
+   STATS  (now with Free Time row, proper formatting)
+═══════════════════════════════════════════ */
+function refreshStats(){
+  // Sleep
+  let sleepMins=0;
+  for(let m=0;m<MINS;m++) if(isSleepMin(m)) sleepMins++;
+  const sleepPerDay=sleepMins;
+  const sleepPerWeek=sleepMins*7;
+  document.getElementById('sleep-stat').textContent=
+    `Sleep: ${fmtDuration(sleepPerDay)}/day · ${fmtDuration(sleepPerWeek)}/wk`;
+
+  // Category totals (in minutes)
+  const tot={};
+  blocks.forEach(b=>{tot[b.catId]=(tot[b.catId]||0)+(b.endMin-b.startMin);});
+
+  // Awake minutes per week
+  const awakePerWeek=(MINS-sleepMins)*7;
+  const usedMins=Object.values(tot).reduce((s,v)=>s+v,0);
+  const freeMins=Math.max(0,awakePerWeek-usedMins);
+
+  const sl=document.getElementById('stats-list');
+  sl.innerHTML='';
+
+  const maxMins=Math.max(sleepPerWeek,usedMins,freeMins,1);
+
+  sl.appendChild(mkStat('#7b7fd4','Sleep',sleepPerWeek,maxMins));
+  categories.forEach(cat=>{
+    sl.appendChild(mkStat(cat.color,cat.name,tot[cat.id]||0,maxMins));
+  });
+  // Free time row
+  sl.appendChild(mkStat('#b0b8c1','Free time',freeMins,maxMins,true));
+
+  renderCatList();
+}
+
+function mkStat(color,name,totalMins,maxMins,italic){
+  const r=document.createElement('div');r.className='stat-row';
+  const pct=Math.min(100,totalMins/maxMins*100);
+  r.innerHTML=`
+    <div class="stat-top">
+      <div class="stat-dot" style="background:${color}"></div>
+      <span class="stat-name" style="${italic?'font-style:italic;color:#888;':''}">${name}</span>
+      <span class="stat-val" style="${italic?'color:#888;':''}">${fmtDuration(totalMins)}</span>
+    </div>
+    <div class="stat-track"><div class="stat-fill" style="background:${color};width:${pct}%"></div></div>`;
+  return r;
+}
+
+/* ═══════════════════════════════════════════
+   MODAL  (with repeat/copy-to-days chips)
+═══════════════════════════════════════════ */
+let mMode=null, mData={};
+// chipState: array of 7 booleans (Mon–Sun), excluding the source day
+let chipState=Array(7).fill(false);
+
+function buildCatSel(){
+  const s=document.getElementById('f-cat');s.innerHTML='';
+  categories.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;s.appendChild(o);});
+}
+
+function buildRepeatChips(sourceDayIdx){
+  const container=document.getElementById('repeat-chips');
+  container.innerHTML='';
+  chipState=Array(7).fill(false);
+  DAYS_SHORT.forEach((d,i)=>{
+    if(i===sourceDayIdx) return; // skip source day
+    const chip=document.createElement('div');
+    chip.className='day-chip';
+    chip.textContent=d;
+    chip.dataset.day=i;
+    chip.addEventListener('click',()=>{
+      chipState[i]=!chipState[i];
+      chip.classList.toggle('on',chipState[i]);
+    });
+    container.appendChild(chip);
+  });
+}
+
+function openModal(mode,data){
+  mMode=mode; mData=data;
+  buildCatSel();
+  buildRepeatChips(data.dayIdx);
+  document.getElementById('modal-title-text').textContent=mode==='new'?'New Block':'Edit Block';
+  document.getElementById('modal-day-info').textContent=DAYS_FULL[data.dayIdx];
+  document.getElementById('f-start').value=minToTimeStr(data.startMin);
+  document.getElementById('f-end').value=minToTimeStr(data.endMin);
+  document.getElementById('f-title').value=data.title||'';
+  document.getElementById('f-cat').value=data.catId||categories[0]?.id||'';
+  document.getElementById('f-loc').value=data.location||'';
+  document.getElementById('f-notes').value=data.notes||'';
+  document.getElementById('modal-del-btn').style.display=mode==='edit'?'block':'none';
+  document.getElementById('modal-save-btn').textContent=mode==='new'?'Create block':'Save changes';
+  document.getElementById('modal-backdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('f-title').focus(),50);
+}
+function closeModal(){
+  document.getElementById('modal-backdrop').classList.remove('open');
+  mMode=null; mData={};
+}
+function saveModal(){
+  const sMin=timeStrToMin(document.getElementById('f-start').value);
+  const eMin=timeStrToMin(document.getElementById('f-end').value);
+  if(eMin<=sMin){alert('End time must be after start time.');return;}
+  const d={
+    startMin:sMin,endMin:eMin,
+    catId:document.getElementById('f-cat').value,
+    title:document.getElementById('f-title').value.trim(),
+    location:document.getElementById('f-loc').value.trim(),
+    notes:document.getElementById('f-notes').value.trim()
+  };
+  if(mMode==='new'){
+    blocks.push({id:uid(),dayIdx:mData.dayIdx,...d});
+  } else {
+    const b=blocks.find(x=>x.id===mData.id);
+    if(b) Object.assign(b,d);
+  }
+  // Copy to selected days
+  chipState.forEach((on,di)=>{
+    if(!on) return;
+    blocks.push({id:uid(),dayIdx:di,...d});
+  });
+  closeModal();renderBlocks();refreshStats();saveToStorage();
+}
+function deleteBlock(){
+  if(!mData.id) return;
+  blocks=blocks.filter(b=>b.id!==mData.id);
+  closeModal();renderBlocks();refreshStats();saveToStorage();
+}
+
+/* ═══════════════════════════════════════════
+   LOCAL STORAGE
+═══════════════════════════════════════════ */
+function saveToStorage(){
+  try{
+    localStorage.setItem('iw3_blocks',JSON.stringify(blocks));
+    localStorage.setItem('iw3_cats',JSON.stringify(categories));
+    localStorage.setItem('iw3_wake',wakeMin);
+    localStorage.setItem('iw3_sleep',sleepMin);
+    localStorage.setItem('iw3_zoom',zoomIdx);
+  }catch(e){}
+}
+function loadFromStorage(){
+  try{
+    const b=localStorage.getItem('iw3_blocks');
+    if(b){blocks=JSON.parse(b);nextId=Math.max(nextId,...blocks.map(x=>parseInt(x.id)||0))+1;}
+    const c=localStorage.getItem('iw3_cats');if(c) categories=JSON.parse(c);
+    const w=localStorage.getItem('iw3_wake');if(w!==null) wakeMin=parseInt(w);
+    const s=localStorage.getItem('iw3_sleep');if(s!==null) sleepMin=parseInt(s);
+    const z=localStorage.getItem('iw3_zoom');if(z!==null) zoomIdx=parseInt(z);
+  }catch(e){}
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+function init(){
+  loadFromStorage();
+  buildTimeSelects();
+  buildGrid();
+  refreshStats();
+
+  document.getElementById('wake-select').onchange=e=>{wakeMin=parseInt(e.target.value);refreshSleepZones();refreshStats();saveToStorage();};
+  document.getElementById('sleep-select').onchange=e=>{sleepMin=parseInt(e.target.value);refreshSleepZones();refreshStats();saveToStorage();};
+  document.getElementById('add-cat-btn').onclick=addCat;
+  document.getElementById('new-cat-name').onkeydown=e=>{if(e.key==='Enter')addCat();};
+  document.getElementById('modal-close-btn').onclick=closeModal;
+  document.getElementById('modal-backdrop').onclick=e=>{if(e.target===document.getElementById('modal-backdrop'))closeModal();};
+  document.getElementById('modal-save-btn').onclick=saveModal;
+  document.getElementById('modal-del-btn').onclick=deleteBlock;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+}
+function addCat(){
+  const name=document.getElementById('new-cat-name').value.trim();
+  if(!name) return;
+  categories.push({id:uid(),name,color:document.getElementById('new-cat-color').value,visible:true});
+  document.getElementById('new-cat-name').value='';
+  saveToStorage();renderCatList();refreshStats();buildCatSel();
+}
+
+init();
+</script>
+</body>
+</html>
