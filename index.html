@@ -85,6 +85,10 @@ input[type="color"].color-swatch{width:27px;height:27px;border:1px solid var(--b
 .tb-sep{width:1px;height:16px;background:var(--border);margin:0 1px;}
 .tb-btn{height:28px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:12px;font-family:inherit;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;transition:background .1s;}
 .tb-btn:hover{background:color-mix(in srgb,var(--text) 6%,var(--surface));}
+.tb-btn-danger{color:#e44;}
+.tb-btn-danger:hover{background:color-mix(in srgb,#e44 8%,var(--surface));border-color:color-mix(in srgb,#e44 35%,var(--border));}
+.tb-btn:disabled{opacity:.4;cursor:default;}
+.tb-btn:disabled:hover{background:var(--surface);border-color:var(--border);}
 .zoom-ctrl{display:flex;align-items:center;gap:5px;}
 .zoom-btn{width:26px;height:26px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text);user-select:none;line-height:1;}
 .zoom-btn:hover{background:color-mix(in srgb,var(--text) 6%,var(--surface));}
@@ -244,6 +248,7 @@ input[type="color"].color-swatch{width:27px;height:27px;border:1px solid var(--b
     </div>
     <div class="tb-sep"></div>
     <button class="tb-btn" id="undo-btn">↩ Undo</button>
+    <button class="tb-btn tb-btn-danger" id="clear-all-btn">🗑 Clear all</button>
     <button class="tb-btn" id="export-btn">⬇ Export PDF</button>
     <span class="tb-hint" id="tb-hint">Drag to create · Click to edit · Ctrl+C on block to copy</span>
   </div>
@@ -670,6 +675,7 @@ function renderBlocks(){
     });
   }
   refreshDayTotals();
+  refreshClearBtn();
 }
 
 function attachBlock(el,b,rz){
@@ -905,6 +911,25 @@ function duplicateBlock(){
 }
 
 /* ═══════════════════════════════════
+   CLEAR ALL BLOCKS  (undoable)
+═══════════════════════════════════ */
+function clearAllBlocks(){
+  if(!blocks.length){showToast('Nothing to clear');return;}
+  const n=blocks.length;
+  if(!confirm(`Delete all ${n} block${n===1?'':'s'} from your ideal week?\n\nCategories and sleep settings are kept. You can undo this.`))return;
+  pushUndo();
+  blocks=[];
+  if(pasteMode)exitPasteMode();
+  renderBlocks();refreshStats();saveToStorage();
+  showToast(`Cleared ${n} block${n===1?'':'s'} · Ctrl+Z to undo`);
+  refreshClearBtn();
+}
+function refreshClearBtn(){
+  const btn=document.getElementById('clear-all-btn');
+  if(btn)btn.disabled=blocks.length===0;
+}
+
+/* ═══════════════════════════════════
    EXPORT PDF
 ═══════════════════════════════════ */
 function exportPDF(){ window.print(); }
@@ -961,6 +986,7 @@ function init(){
   document.getElementById('modal-del-btn').onclick=deleteBlock;
   document.getElementById('modal-dupe-btn').onclick=duplicateBlock;
   document.getElementById('undo-btn').onclick=undo;
+  document.getElementById('clear-all-btn').onclick=clearAllBlocks;
   document.getElementById('export-btn').onclick=exportPDF;
   document.getElementById('dark-toggle').onclick=()=>applyDark(!darkMode);
 }
